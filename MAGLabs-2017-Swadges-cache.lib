@@ -224,11 +224,11 @@ X ~ 2 0 -150 50 U 50 50 1 1 P
 ENDDRAW
 ENDDEF
 #
-# Tactile_Switch
+# Tactile_Switch-RESCUE-MAGLabs-2017-Swadges
 #
-DEF Tactile_Switch S 0 40 Y Y 1 F N
+DEF Tactile_Switch-RESCUE-MAGLabs-2017-Swadges S 0 40 Y Y 1 F N
 F0 "S" 0 50 60 H V C CNN
-F1 "Tactile_Switch" 0 450 60 H V C CNN
+F1 "Tactile_Switch-RESCUE-MAGLabs-2017-Swadges" 0 450 60 H V C CNN
 F2 "" 200 0 60 H I C CNN
 F3 "" 200 0 60 H I C CNN
 DRAW

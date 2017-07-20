@@ -1,0 +1,28 @@
+Drill report for /home/mark25/MAGLabs-2017-Swadges/MAGLabs-2017-Swadges.kicad_pcb
+Created on Thu 20 Jul 2017 01:06:53 AM EDT
+
+Copper Layer Stackup:
+    =============================================================
+    L1 :  F.Cu                      front
+    L2 :  B.Cu                      back
+
+
+Drill file 'MAGLabs-2017-Swadges-PTH.drl' contains
+    plated through holes:
+    =============================================================
+    T1  0.40mm  0.016"  (5 holes)
+    T2  0.52mm  0.020"  (2 holes)
+    T3  0.71mm  0.028"  (1 hole)
+    T4  0.80mm  0.031"  (2 holes)
+    T5  1.00mm  0.039"  (11 holes)
+    T6  1.10mm  0.043"  (2 holes)
+    T7  1.80mm  0.071"  (1 hole)
+
+    Total plated holes count 24
+
+
+Drill file 'MAGLabs-2017-Swadges-NPTH.drl' contains
+    unplated through holes:
+    =============================================================
+
+    Total unplated holes count 0
