@@ -29,8 +29,9 @@ LIBS:opto
 LIBS:atmel
 LIBS:contrib
 LIBS:valves
+LIBS:local
 LIBS:MAGLabs-2017-Swadges-cache
-EELAYER 25 0
+EELAYER 26 0
 EELAYER END
 $Descr A4 11693 8268
 encoding utf-8
@@ -507,7 +508,7 @@ U 1 1 596F363A
 P 1100 6850
 F 0 "BT1" H 1218 6946 50  0000 L CNN
 F 1 "Battery_Cell" H 1218 6855 50  0000 L CNN
-F 2 "local:BK-53" V 1100 6910 50  0001 C CNN
+F 2 "local:Elecrow-ThroughHole-AA-Battery" V 1100 6910 50  0001 C CNN
 F 3 "" V 1100 6910 50  0001 C CNN
 	1    1100 6850
 	1    0    0    -1  
@@ -518,7 +519,7 @@ U 1 1 596F3765
 P 1100 7250
 F 0 "BT2" H 1218 7346 50  0000 L CNN
 F 1 "Battery_Cell" H 1218 7255 50  0000 L CNN
-F 2 "local:BK-53" V 1100 7310 50  0001 C CNN
+F 2 "local:Elecrow-ThroughHole-AA-Battery" V 1100 7310 50  0001 C CNN
 F 3 "" V 1100 7310 50  0001 C CNN
 	1    1100 7250
 	1    0    0    -1  
