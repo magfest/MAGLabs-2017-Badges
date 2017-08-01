@@ -1,8 +1,0 @@
-### Module positions - created on Tue Aug  1 03:09:31 2017 ###
-### Printed by Pcbnew version kicad (2017-07-14 revision d3b382c28)-master
-## Unit = mm, Angle = deg.
-## Side : bottom
-# Ref     Val       Package                PosX       PosY       Rot  Side
-G***      LOGO      Citizen-label      136.0000  -119.0000  180.0000  bottom
-G1        LOGO      maglabs-backv2     136.2500   -90.7500  180.0000  bottom
-## End

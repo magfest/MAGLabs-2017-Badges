@@ -1,0 +1,7 @@
+### Module positions - created on Tue Aug  1 03:33:26 2017 ###
+### Printed by Pcbnew version kicad (2017-07-14 revision d3b382c28)-master
+## Unit = mm, Angle = deg.
+## Side : bottom
+# Ref     Val       Package                PosX       PosY       Rot  Side
+G1        LOGO      maglabs-backv2     136.2500   -90.7500  180.0000  bottom
+## End
