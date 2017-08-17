@@ -8,9 +8,11 @@
 #include "osapi.h"
 #include "espconn.h"
 #include "esp82xxutil.h"
+#include "i2sduplex.h"
 #include "commonservices.h"
 #include "vars.h"
 #include <mdns.h>
+#include <vive_help.h>
 
 #define procTaskPrio        0
 #define procTaskQueueLen    1
@@ -39,7 +41,8 @@ static void ICACHE_FLASH_ATTR myTimer(void *arg)
 {
 	static	int frameno;
 	int i;
-	frameno++;
+	frameno+=16;
+	//frameno = 255;
 	uint8_t leds[12];
 	for( i = 0; i < 4; i++ )
 	{
@@ -47,8 +50,9 @@ static void ICACHE_FLASH_ATTR myTimer(void *arg)
 		leds[i*3+1] = frameno;
 		leds[i*3+2] = frameno;
 	}
-
 	ws2812_push( leds, 4);
+
+	printf( "%d %d %d\n", VS.count, VS.rxcount, VS.pulses );
 	CSTick( 1 ); // Send a one to uart
 }
 
@@ -107,11 +111,13 @@ void user_init(void)
 	//Timer example
 	os_timer_disarm(&some_timer);
 	os_timer_setfn(&some_timer, (os_timer_func_t *)myTimer, NULL);
-	os_timer_arm(&some_timer, 100, 1);
+	os_timer_arm(&some_timer, 1000, 1);
 
 	printf( "Boot Ok.\n" );
 
-	ws2812_init();
+	init_vive();
+
+	testi2s_init();
 
 //	wifi_set_sleep_type(LIGHT_SLEEP_T);
 //	wifi_fpm_set_sleep_type(LIGHT_SLEEP_T);
