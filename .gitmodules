@@ -1,0 +1,3 @@
+[submodule "xxfirmware/esp82xx"]
+	path = xxfirmware/esp82xx
+	url = https://github.com/cnlohr/esp82xx.git
