@@ -25,6 +25,7 @@ extern int fxcycle;
 extern int erx, etx;
 
 void ICACHE_FLASH_ATTR testi2s_init();
+void ICACHE_FLASH_ATTR testi2s_disable();
 void ICACHE_FLASH_ATTR ws2812_push( uint8_t * leds,  int ledcount);
 
 #endif

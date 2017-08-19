@@ -17,7 +17,15 @@
 #define procTaskPrio        0
 #define procTaskQueueLen    1
 
-static volatile os_timer_t some_timer;
+uint8_t leds[12];
+void ICACHE_FLASH_ATTR send_ws_leds()
+{
+	ws2812_push( leds, 4);
+}
+
+
+
+//static volatile os_timer_t some_timer;
 static struct espconn *pUdpServer;
 usr_conf_t * UsrCfg = (usr_conf_t*)(SETTINGS.UserData);
 
@@ -30,31 +38,80 @@ void user_rf_pre_init(void) { /*nothing*/ }
 
 os_event_t    procTaskQueue[procTaskQueueLen];
 
-static void ICACHE_FLASH_ATTR procTask(os_event_t *events)
-{
-	CSTick( 0 );
-	system_os_post(procTaskPrio, 0, 0 );
-}
-
-//Timer event.
-static void ICACHE_FLASH_ATTR myTimer(void *arg)
+static void ICACHE_FLASH_ATTR slowtick()
 {
 	static	int frameno;
 	int i;
-	frameno+=16;
+	frameno++;
 	//frameno = 255;
-	uint8_t leds[12];
 	for( i = 0; i < 4; i++ )
 	{
 		leds[i*3+0] = frameno;
 		leds[i*3+1] = frameno;
 		leds[i*3+2] = frameno;
 	}
-	ws2812_push( leds, 4);
+	if( frameno == 2 ) frameno = 0;
+	send_ws_leds();
 
-	printf( "%d %d %d %d\n", VS.count, VS.rxcount, VS.pulses, VS.count - VS.rxcount * 64* 32 );
+//	printf( "." );
+	printf( "%d %d\n", VS.count, VS.rxcount );
+	//XXX TODO: Check to see if we're connected here.
+
 	CSTick( 1 ); // Send a one to uart
 }
+
+//XXX: Tricky this actualy comes from the I2S engine.  Otherwise we can't enter light sleep.
+static void ICACHE_FLASH_ATTR procTask(os_event_t *events)
+{
+	//This operates at ~1620Hz
+	static int ticks;
+	CSTick( 0 );
+	ticks++;
+	if( ticks == 100 )
+	{
+		slowtick();
+		ticks = 0;
+	}
+}
+
+void ICACHE_FLASH_ATTR go_deepest_sleep_we_can()
+{
+	printf( "DEEPSLEEP\n" );
+	ets_memset( leds, 0, sizeof( leds ) ); leds[1] = 1; leds[4] = 1; leds[7] = 1; leds[10] = 1;
+	send_ws_leds();
+
+	ets_delay_us(14000);
+	send_ws_leds();
+	os_delay_us(14000);
+	testi2s_disable();
+
+	wifi_station_disconnect();
+	wifi_set_opmode_current( 0 ); //disconnect from wifi.
+
+	PIN_FUNC_SELECT(PERIPHS_IO_MUX_MTDI_U, FUNC_GPIO12);
+	PIN_FUNC_SELECT(PERIPHS_IO_MUX_U0RXD_U, FUNC_GPIO3);
+
+	gpio_output_set(0,0,0, 0xffff);
+	ets_wdt_disable();
+	int i;
+	for( i = 0; i < 3; i++ )
+		do_pvvx_sleep(5000,0);	//In milliseconds.
+	do_pvvx_sleep(5000,1);	//In milliseconds... and reboot.
+
+	//XXX This code SHOULD never be executed.
+	ets_delay_us(10000);
+	void (*my_reset)() = (void (*)())0x400000a4;
+	my_reset();
+
+}
+
+int ICACHE_FLASH_ATTR FailedToConnect( int wifi_fail_connects )
+{
+	//XXX TODO: Consider seeing if we were connected, if so, reattempt connection once.  If fails again, then do deep sleep.
+	go_deepest_sleep_we_can();
+}
+
+
 
 
 //Called when new packet comes in.
@@ -70,6 +127,8 @@ void ICACHE_FLASH_ATTR charrx( uint8_t c )
 {
 	//Called from UART.
 }
+
+
 
 void user_init(void)
 {
@@ -109,20 +168,42 @@ void user_init(void)
 	system_os_task(procTask, procTaskPrio, procTaskQueue, procTaskQueueLen);
 
 	//Timer example
-	os_timer_disarm(&some_timer);
-	os_timer_setfn(&some_timer, (os_timer_func_t *)myTimer, NULL);
-	os_timer_arm(&some_timer, 1000, 1);
+//	os_timer_disarm(&some_timer);
+//	os_timer_setfn(&some_timer, (os_timer_func_t *)myTimer, NULL);
+//	os_timer_arm(&some_timer, 100, 1);
 
 	printf( "Boot Ok.\n" );
 
-	init_vive();
+	init_vive(); //Prepare the Vive core for receiving data.
+	testi2s_init(); //Actually start the i2s engine.
+	ets_memset( leds, 0, sizeof( leds ) ); leds[0] = 1; leds[5] = 1; leds[6] = 1; leds[11] = 1;
+	send_ws_leds();
 
-	testi2s_init();
+/*	wifi_station_disconnect();
+	wifi_set_opmode_current( 0 ); //disconnect from wifi.
+	memset( leds, 0, sizeof( leds ) ); // leds[1] = 1; leds[4] = 1; leds[7] = 1; leds[10] = 1;
+	send_ws_leds();
+	os_delay_us(60000);
+	send_ws_leds();
+	os_delay_us(60000);
+*/
 
+// Forced deep sleep (TEST, DO NOT ENABLE)
+//	system_deep_sleep_set_option( 0 );
+//	system_deep_sleep( 10000000 );
+//	ets_delay_us(1000000);
+
+	// pvvx sleep badge total: 9 ma  (if you call deepest_sleep_we_can_do)
+
+	//~6-18mA but the CPU goes janky. when connected.  75mA when not connected.
 //	wifi_set_sleep_type(LIGHT_SLEEP_T);
 //	wifi_fpm_set_sleep_type(LIGHT_SLEEP_T);
 
-	system_os_post(procTaskPrio, 0, 0 );
+	//~20-30mA but allows continuous CPU operation. when connected to AP, but 75mA when not connected.
+	wifi_set_sleep_type(MODEM_SLEEP_T);
+	wifi_fpm_set_sleep_type(MODEM_SLEEP_T);
+
+//	system_os_post(procTaskPrio, 0, 0 );
 }
 
 

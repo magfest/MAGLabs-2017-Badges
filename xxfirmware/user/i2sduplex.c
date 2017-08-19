@@ -24,6 +24,7 @@ uint32_t i2sBDRX[I2SDMABUFLEN*DMABUFFERDEPTH];
 uint32_t i2sBDTX[I2SDMABUFLEN*DMABUFFERDEPTH];
 int fxcycle;
 int erx, etx;
+static int already_attached;
 
 volatile int ledreadyflag;
 
@@ -54,6 +55,7 @@ LOCAL void slc_isr(void) {
 		}
 
 		etx++;	//I know it's wacky, but the nomeclature is backwards, this is for TX packets in here.
+		system_os_post(0, 0, 0 );
 	}
 	if ( (slc_intr_status & SLC_TX_EOF_INT_ST))
 	{
@@ -86,6 +88,17 @@ LOCAL void slc_isr(void) {
 
 
 
+}
+
+void ICACHE_FLASH_ATTR testi2s_disable()
+{
+	WRITE_PERI_REG(SLC_INT_CLR, 0xffffffff);
+	///disable DMA intr in cpu
+	ets_isr_mask(1<<ETS_SLC_INUM);
+	WRITE_PERI_REG(SLC_INT_CLR,  SLC_INTEREST_EVENT);
+	SET_PERI_REG_MASK(SLC_INT_CLR,  0xffffffff);
+	CLEAR_PERI_REG_MASK(SLC_CONF0, (SLC_MODE<<SLC_MODE_S));
+	CLEAR_PERI_REG_MASK(SLC_CONF0,SLC_TX_LOOP_TEST |SLC_RXLINK_RST|SLC_TXLINK_RST|SLC_AHBM_RST | SLC_AHBM_FIFO_RST);
 }
 
 //Initialize I2S subsystem for DMA circular buffer use
@@ -151,7 +164,11 @@ void ICACHE_FLASH_ATTR testi2s_init() {
 	SET_PERI_REG_MASK(SLC_RX_LINK, ((uint32)&i2sBufDescTX[0]) & SLC_RXLINK_DESCADDR_MASK);
 
 	//Attach the DMA interrupt
-	ets_isr_attach(ETS_SLC_INUM, slc_isr);
+	if( !already_attached )
+	{
+		ets_isr_attach(ETS_SLC_INUM, slc_isr);
+		already_attached = 1;
+	}
 	WRITE_PERI_REG(SLC_INT_ENA,  SLC_INTEREST_EVENT);
 
 	//clear any interrupt flags that are set
