@@ -13,6 +13,7 @@
 #include "vars.h"
 #include <mdns.h>
 #include <vive_help.h>
+#include <buttons.h>
 
 #define procTaskPrio        0
 #define procTaskQueueLen    1
@@ -53,6 +54,9 @@ static void ICACHE_FLASH_ATTR slowtick()
 	if( frameno == 2 ) frameno = 0;
 	send_ws_leds();
 
+	uint8 ret = 0;
+	ret = GetButtons();
+	printf("Got buttons: %d", ret);
 //	printf( "." );
 	printf( "%d %d\n", VS.count, VS.rxcount );
 	//XXX TODO: Check to see if we're connected here.
