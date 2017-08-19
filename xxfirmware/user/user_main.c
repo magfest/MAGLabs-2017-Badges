@@ -52,7 +52,7 @@ static void ICACHE_FLASH_ATTR myTimer(void *arg)
 	}
 	ws2812_push( leds, 4);
 
-	printf( "%d %d %d\n", VS.count, VS.rxcount, VS.pulses );
+	printf( "%d %d %d %d\n", VS.count, VS.rxcount, VS.pulses, VS.count - VS.rxcount * 64* 32 );
 	CSTick( 1 ); // Send a one to uart
 }
 

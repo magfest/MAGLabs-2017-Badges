@@ -28,8 +28,9 @@ void vive_data( uint32_t * data, uint32_t length )
 
 	v->rxcount++;
 
+	if( v->in_pulse ) goto searchct;
+
 resct:
-	if( v->in_pulse )
 	{
 		//Continue with pulse data
 		for( ; i < length; i++ )
@@ -41,67 +42,62 @@ resct:
 				continue;
 			}
 
-			for( ; j < 32; j++ )
+			for( ; j < 32; )
 			{
-				count++;
 				if( dat & mask )
 				{
 					//Still in pulse
+					mask >>= 1; j++; count++;
 				}
 				else
 				{
 					//End-of-pulse!
-					vive_pulse( v, v->start, count - v->start );
+					mask >>= 1; j++; count++;
 					v->in_pulse = 0;
+					vive_pulse( v, v->start, count - v->start );
 					goto searchct;
 				}
-				mask >>= 1;
 			}
 			j = 0; mask = 1L<<31;
 		}
 		v->count = count;
-
 		return;
 	}
 
 searchct:
-	for( ; i < length; i++ )
 	{
-		uint32_t dat = data[i];
-		if( data[i] )
+		for( ; i < length; i++ )
 		{
-			//We have a pulse
-			for( ; j < 32; j++ )
+			uint32_t dat = data[i];
+			if( dat == 0x00000000 )
 			{
+				count += 32;
+				continue;
+			}
+
+			//We have a pulse
+			for( ; j < 32; )
+			{
+				
 				if( dat & mask )
 				{
-					v->in_pulse = 1;
+					count++; mask >>= 1; j++; 
+					v->in_pulse = 1; 
 					v->start = count;
-					j++;
-					if( j == 32 )
-					{
-						i++;
-						j = 0;
-					}
 					goto resct;				
 				}
 				else
 				{
-					mask >>= 1;
+					count++; mask >>= 1; j++;
 				}
-				count++;
 			}
 			j = 0; mask = 1L<<31;
 		}
-		else
-		{
-			count += 32;
-		}
+		v->count = count;
+		return;
 	}
-
-	v->count = count;
-	return;
 }
+
 
 void vive_pulse( struct vivestate * v, uint32_t start, uint32_t length )
 {
