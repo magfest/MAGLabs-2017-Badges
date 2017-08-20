@@ -39,6 +39,24 @@ gpio16_input_get(void)
     return (uint8)(READ_PERI_REG(RTC_GPIO_IN_DATA) & 1);
 }
 
+// NEW BADGES
+// Start = GPIO 0
+// Select = GPIO 2
+// 4, 5, 16 = Button Readout
+// 15 replaces 16 on prototype borads
+
+// LSB to MSB:
+// Right
+// Down
+// Left
+// Up
+// Select
+// Start
+// B
+// A
+
+// Uncomment this to flash a prototype badge, where pin 15 is used instead of 16
+//#define PROTOTYPE_BADGE
 
 uint8_t GetButtons()
 {
@@ -50,26 +68,82 @@ uint8_t GetButtons()
 	PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO4_U,FUNC_GPIO4);
 	PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO5_U,FUNC_GPIO5);
 
-	PIN_DIR_INPUT |= (1<<4) | (1<<5);
+
+/*
+ * set 4 low
+ * A = 5
+ * Left = 16/15
+ *
+ * set 5 low
+ * B = 4
+ * Up = 16/15
+ *
+ * set 16/15 low
+ * Right = 4
+ * Down = 5
+ */
+
+	PIN_DIR_INPUT |= (1<<0) | (1<<2) | (1<<4) | (1<<5);
+
+#ifdef PROTOTYPE_BADGE
+	PIN_DIR_INPUT |= (1<<15);
+#else
 	gpio16_input_conf();
+#endif
 
 	PIN_DIR_OUTPUT |= (1<<4);
 	PIN_OUT_CLEAR |= (1<<4);
-	ret |= (PIN_IN & (1<<5))>>5;
-	ret |= gpio16_input_get()<<1;
+
+	// A (1<<7)
+	ret |= (PIN_IN & (1<<5))<<2;
+
+	// Left (1<<2)
+	ret |= gpio16_input_get()<<2;
+
 	PIN_DIR_INPUT |= (1<<4);
 
 	PIN_DIR_OUTPUT |= (1<<5);
 	PIN_OUT_CLEAR |= (1<<5);
-	ret |= (PIN_IN & (1<<4))>>1;
-	ret |= gpio16_input_get()<<4;
+
+	// B
+	ret |= (PIN_IN & (1<<4))<<2;
+
+	// Up
+#ifdef PROTOTYPE_BADGE
+    ret |= (PIN_IN & (1<<15))>>12;
+#else
+	ret |= gpio16_input_get()<<3;
+#endif
+
 	PIN_DIR_INPUT |= (1<<5);
 
+#ifdef PROTOTYPE_BADGE
+    PIN_DIR_OUTPUT |= (1<<15);
+	PIN_OUT_CLEAR |= (1<<15);
+#else
 	gpio16_output_conf();
 	gpio16_output_set(0);
-	ret |= (PIN_IN & (1<<4))<<1;
-	ret |= (PIN_IN & (1<<5))<<1;
+#endif
+
+	// Right
+	ret |= (PIN_IN & (1<<4))>>4;
+
+	// Down
+	ret |= (PIN_IN & (1<<5))>>4;
+
+#ifdef PROTOTYPE_BADGE
+    PIN_DIR_INPUT |= (1<<15);
+#else
 	gpio16_input_conf();
+#endif
+
+	// Normal Things
+
+	// Start
+	ret |= (~PIN_IN & (1<<0))<<5;
+
+	// Select
+	ret |= (~PIN_IN & (1<<2))<<2;
 
 	ETS_GPIO_INTR_ENABLE();
         return ret;
