@@ -56,7 +56,7 @@ static void ICACHE_FLASH_ATTR slowtick()
 
 	uint8 ret = 0;
 	ret = GetButtons();
-	printf("Got buttons: %d", ret);
+	printf("Got buttons: %d\n", ret);
 //	printf( "." );
 	printf( "%d %d\n", VS.count, VS.rxcount );
 	//XXX TODO: Check to see if we're connected here.

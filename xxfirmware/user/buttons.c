@@ -42,7 +42,13 @@ gpio16_input_get(void)
 
 uint8_t GetButtons()
 {
+	ETS_GPIO_INTR_DISABLE();
         uint8_t ret = 0;
+
+	PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO0_U,FUNC_GPIO0);
+	PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO2_U,FUNC_GPIO2);
+	PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO4_U,FUNC_GPIO4);
+	PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO5_U,FUNC_GPIO5);
 
 	PIN_DIR_INPUT |= (1<<4) | (1<<5);
 	gpio16_input_conf();
@@ -65,6 +71,7 @@ uint8_t GetButtons()
 	ret |= (PIN_IN & (1<<5))<<1;
 	gpio16_input_conf();
 
+	ETS_GPIO_INTR_ENABLE();
         return ret;
 }
 
