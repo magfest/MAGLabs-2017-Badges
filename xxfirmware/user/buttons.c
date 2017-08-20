@@ -55,9 +55,6 @@ gpio16_input_get(void)
 // B
 // A
 
-// Uncomment this to flash a prototype badge, where pin 15 is used instead of 16
-//#define PROTOTYPE_BADGE
-
 uint8_t GetButtons()
 {
 	ETS_GPIO_INTR_DISABLE();
@@ -85,11 +82,7 @@ uint8_t GetButtons()
 
 	PIN_DIR_INPUT |= (1<<0) | (1<<2) | (1<<4) | (1<<5);
 
-#ifdef PROTOTYPE_BADGE
-	PIN_DIR_INPUT |= (1<<15);
-#else
 	gpio16_input_conf();
-#endif
 
 	PIN_DIR_OUTPUT |= (1<<4);
 	PIN_OUT_CLEAR |= (1<<4);
@@ -109,21 +102,12 @@ uint8_t GetButtons()
 	ret |= (PIN_IN & (1<<4))<<2;
 
 	// Up
-#ifdef PROTOTYPE_BADGE
-    ret |= (PIN_IN & (1<<15))>>12;
-#else
 	ret |= gpio16_input_get()<<3;
-#endif
 
 	PIN_DIR_INPUT |= (1<<5);
 
-#ifdef PROTOTYPE_BADGE
-    PIN_DIR_OUTPUT |= (1<<15);
-	PIN_OUT_CLEAR |= (1<<15);
-#else
 	gpio16_output_conf();
 	gpio16_output_set(0);
-#endif
 
 	// Right
 	ret |= (PIN_IN & (1<<4))>>4;
@@ -131,11 +115,7 @@ uint8_t GetButtons()
 	// Down
 	ret |= (PIN_IN & (1<<5))>>4;
 
-#ifdef PROTOTYPE_BADGE
-    PIN_DIR_INPUT |= (1<<15);
-#else
 	gpio16_input_conf();
-#endif
 
 	// Normal Things
 
