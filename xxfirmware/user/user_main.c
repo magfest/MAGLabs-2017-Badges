@@ -58,14 +58,14 @@ static void ICACHE_FLASH_ATTR slowtick()
 	ret = GetButtons();
 	printf("             RDLUSEBA\n");
 	printf("Got buttons: %c%c%c%c%c%c%c%c\n",
-		   (ret >> 7) & 1 ? 'x':'-',
-		   (ret >> 6) & 1 ? 'x':'-',
-		   (ret >> 5) & 1 ? 'x':'-',
-		   (ret >> 4) & 1 ? 'x':'-',
-		   (ret >> 3) & 1 ? 'x':'-',
-		   (ret >> 2) & 1 ? 'x':'-',
+		   (ret >> 0) & 1 ? 'x':'-',
 		   (ret >> 1) & 1 ? 'x':'-',
-		   (ret >> 0) & 1 ? 'x':'-');
+		   (ret >> 2) & 1 ? 'x':'-',
+		   (ret >> 3) & 1 ? 'x':'-',
+		   (ret >> 4) & 1 ? 'x':'-',
+		   (ret >> 5) & 1 ? 'x':'-',
+		   (ret >> 6) & 1 ? 'x':'-',
+		   (ret >> 7) & 1 ? 'x':'-');
 	printf("Got buttons: %d\n", ret);
 //	printf( "." );
 	printf( "%d %d\n", VS.count, VS.rxcount );
