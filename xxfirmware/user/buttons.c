@@ -88,10 +88,10 @@ uint8_t GetButtons()
 	PIN_OUT_CLEAR |= (1<<4);
 
 	// A (1<<7)
-	ret |= (PIN_IN & (1<<5))<<2;
+	ret |= (~PIN_IN & (1<<5))<<2;
 
 	// Left (1<<2)
-	ret |= gpio16_input_get()<<2;
+	ret |= (~gpio16_input_get() & 1)<<2;
 
 	PIN_DIR_INPUT |= (1<<4);
 
@@ -102,7 +102,7 @@ uint8_t GetButtons()
 	ret |= (PIN_IN & (1<<4))<<2;
 
 	// Up
-	ret |= gpio16_input_get()<<3;
+	ret |= (~gpio16_input_get() & 1)<<3;
 
 	PIN_DIR_INPUT |= (1<<5);
 
@@ -113,7 +113,7 @@ uint8_t GetButtons()
 	ret |= (PIN_IN & (1<<4))>>4;
 
 	// Down
-	ret |= (PIN_IN & (1<<5))>>4;
+	ret |= (~PIN_IN & (1<<5))>>4;
 
 	gpio16_input_conf();
 
