@@ -1,4 +1,5 @@
 #include <esp82xxutil.h>
+volatile uint8_t LastGPIOState;
 
 void ICACHE_FLASH_ATTR
 gpio16_output_conf(void)
@@ -131,6 +132,7 @@ uint8_t GetButtons()
 	ret |= (~PIN_IN & (1<<2))<<2;
 
 	ETS_GPIO_INTR_ENABLE();
+	LastGPIOState = ret;
         return ret;
 }
 
