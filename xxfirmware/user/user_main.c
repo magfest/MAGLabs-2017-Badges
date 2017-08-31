@@ -290,8 +290,7 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t *events)
 	}
 
 	//Determine if we want to send a status packet.
-	printf("UDP Pending: %d\n", udp_pending);
-	if( !udp_pending )
+	if( 0 )
 	{
 		printf("Sending status...\n");
 		uint8_t * pp = &mypacket[PACK_PAYLOAD_START];
