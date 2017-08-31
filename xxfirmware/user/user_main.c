@@ -434,6 +434,19 @@ void user_init(void)
 	CSSettingsLoad( 0 );
 	CSPreInit();
 
+        struct station_config stationConf;
+        wifi_station_get_config(&stationConf);
+        wifi_get_macaddr(STATION_IF, mymac);
+
+	ets_memcpy( stationConf.ssid, "BadgeFi", 7 );
+	ets_memcpy( stationConf.password, "youmustconstructadditonalpylons", 31 );
+        stationConf.bssid_set = 0;
+        wifi_set_opmode_current( 1 );
+        wifi_set_opmode( 1 );
+        wifi_station_set_config(&stationConf);
+        wifi_station_connect();
+        wifi_station_set_config(&stationConf);  //I don't know why, doing this twice seems to make it store more reliably.
+                                                                                                                                                                
     pUdpServer = (struct espconn *)os_zalloc(sizeof(struct espconn));
 	ets_memset( pUdpServer, 0, sizeof( struct espconn ) );
 	espconn_create( pUdpServer );
