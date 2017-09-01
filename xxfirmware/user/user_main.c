@@ -15,14 +15,19 @@
 #include <buttons.h>
 
 #define REMOTE_IP_CODE 0x0a00c90a
+#define MARK_IP 0x0a655c88
 #define procTaskPrio        0
 #define procTaskQueueLen    1
 
+os_event_t procTaskQueue[procTaskQueueLen];
 uint8_t mymac[6];
 static struct espconn *pUdpServer;
-os_event_t procTaskQueue[procTaskQueueLen];
 uint8_t udp_pending;
 uint8_t leds[12];
+
+uint8_t testpacket[3] = {
+  0x00, 0x01, 0x02
+};
 
 uint8_t mypacket[30+1536] = {  //256 = max size of additional payload
         0x08, //Frame type, 0x80 = beacon, Tried data, but seems to have be$
@@ -39,6 +44,12 @@ uint8_t mypacket[30+1536] = {  //256 = max size of additional payload
 void ProcessData(uint8_t *data, int len) {}
 
 static void ICACHE_FLASH_ATTR slowtick() {
+  if (!udp_pending) {
+    udp_pending = 1;
+    pUdpServer->proto.udp->remote_port = 8001;
+    uint32_to_IP4(MARK_IP, pUdpServer->proto.udp->remote_ip);
+    espconn_send((struct espconn *)pUdpServer, &mypacket[30], 32);
+  }
   CSTick(1);
 }
 
@@ -54,6 +65,7 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t *events) {
 }
 
 void udpsendok_cb(void *arg) {
+  printf("Sent ok\n");
   udp_pending = 0;
 }
 
@@ -114,12 +126,12 @@ void user_init(void) {
 
   printf("MAC: %02x:%02x:%02x:%02x:%02x:%02x\n", mymac[0], mymac[1], mymac[2], mymac[3], mymac[4], mymac[5]);
 
-  ets_memcpy(stationConf.ssid, "BadgeFi", 7);
-  ets_memcpy(stationConf.password, "youmustconstructadditonalpylons", 31);
+  ets_memcpy(stationConf.ssid, "BadgeFi", 8);
+  ets_memcpy(stationConf.password, "youmustconstructadditonalpylons", 32);
 
   stationConf.bssid_set = 0;
-  wifi_set_opmode_current(2);
-  wifi_set_opmode(2);
+  wifi_set_opmode_current(1);
+  wifi_set_opmode(1);
   wifi_station_set_config(&stationConf);
   wifi_station_connect();
   wifi_station_set_config(&stationConf); // Charles has seen issues without the second call to this.
@@ -141,11 +153,16 @@ void user_init(void) {
 
   CSInit();
 
-  system_os_task(procTask, procTaskPrio, procTaskQueue, procTaskQueueLen);
-
-  printf("Boot Ok.\n");
   wifi_set_sleep_type(MODEM_SLEEP_T);
   wifi_fpm_set_sleep_type(MODEM_SLEEP_T);
+  
+  init_vive(); //Prepare the Vive core for receiving data.
+  testi2s_init(); //Actually start the i2s engine.
+  ets_memset( leds, 0, sizeof( leds ) ); leds[0] = 1; leds[5] = 1; leds[6] = 1; leds[11] = 1;
+  send_ws_leds();
+  
+  system_os_task(procTask, procTaskPrio, procTaskQueue, procTaskQueueLen);
+  printf("Boot Ok.\n");
 }
 
 void EnterCritical() {}
