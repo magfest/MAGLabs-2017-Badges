@@ -15,14 +15,14 @@
 #include <buttons.h>
 
 #define REMOTE_IP_CODE 0x0a00c90a
-#define MARK_IP 0x0a655c88
+#define MARK_IP        0x885c650a
 #define procTaskPrio        0
 #define procTaskQueueLen    1
 
 os_event_t procTaskQueue[procTaskQueueLen];
 uint8_t mymac[6];
 static struct espconn *pUdpServer;
-uint8_t udp_pending;
+uint8_t udp_pending = 0;
 uint8_t leds[12];
 
 uint8_t testpacket[3] = {
@@ -45,6 +45,7 @@ void ProcessData(uint8_t *data, int len) {}
 
 static void ICACHE_FLASH_ATTR slowtick() {
   if (!udp_pending) {
+    printf("Trying to send...\n");
     udp_pending = 1;
     pUdpServer->proto.udp->remote_port = 8001;
     uint32_to_IP4(MARK_IP, pUdpServer->proto.udp->remote_ip);
