@@ -18,16 +18,54 @@
 #define MARK_IP        0x885c650a
 #define procTaskPrio        0
 #define procTaskQueueLen    1
+#define STATUS_PACKSIZE 32
 
 os_event_t procTaskQueue[procTaskQueueLen];
 uint8_t mymac[6];
 static struct espconn *pUdpServer;
 uint8_t udp_pending = 0;
 uint8_t leds[12];
+static int ticks = 0;
+static int bigticks = 0;
+int send_back_on_port;
+uint32_t send_back_on_ip;
 
-uint8_t testpacket[3] = {
-  0x00, 0x01, 0x02
-};
+// Status vars
+uint8_t new_buttons = 0;
+uint8_t last_buttons = 0;
+uint8_t last_button_event_btn = 0;
+uint8_t last_button_event_dn = 0;
+
+uint8_t requested_update = 1;
+uint16_t status_update_count = 0;
+uint8_t just_joined_network = 1;
+
+uint8_t rainbow_run = 0;
+uint8_t rainbow_speed = 0;
+uint8_t rainbow_intensity = 0;
+uint8_t rainbow_offset = 0;
+
+uint8_t ledqtybytes = 0;
+uint8_t do_led_push = 0;
+uint8_t last_leds[40*3] = {0};
+
+uint8_t ledrssi_min = 0;
+uint8_t ledrssi_max = 0;
+uint8_t ledrssi_intensity = 0;
+uint8_t make_led_rssi = 0;
+uint8_t led_rssi = 0;
+
+uint8_t need_to_do_scan = 1;
+static uint8_t global_scan_complete = 0;
+static uint8_t global_scan_elements = 0;
+static uint8_t global_scan_data[2048];  //Where SSID, channel, power go.
+
+uint8_t disable_push = 0;
+uint8_t disable_raw_broadcast = 0;
+uint8_t raw_broadcast_rate = 0;
+
+uint8_t force_sleep_time = 0;
+uint8_t do_deep_sleep = 0;
 
 uint8_t mypacket[30+1536] = {  //256 = max size of additional payload
         0x08, //Frame type, 0x80 = beacon, Tried data, but seems to have be$
@@ -41,22 +79,340 @@ uint8_t mypacket[30+1536] = {  //256 = max size of additional payload
 };
 #define PACK_PAYLOAD_START 30
 
-void ProcessData(uint8_t *data, int len) {}
+static void ICACHE_FLASH_ATTR scandone(void *arg, STATUS status)
+{
+	printf("WiFi scan is complete\n");
+	uint8_t * gsp = global_scan_data;
+	global_scan_elements = 0;
+	scaninfo *c = arg;
+	struct bss_info *inf;
+	if( !c->pbss ) {global_scan_elements = 0;  global_scan_complete = 1; return;  }
+	STAILQ_FOREACH(inf, c->pbss, next) {
+		global_scan_elements++;
+		//not using inf->authmode;
+		ets_memcpy( gsp, inf->bssid, 6 );
+		gsp+=6;
+		*(gsp++) = inf->rssi;
+		*(gsp++) = inf->channel;
+		if( gsp - global_scan_data >= 2040 ) break;
+	}
+	global_scan_complete = 1;
+}
+
+void ProcessData(uint8_t *data, int len) {
+  //PROTOCOL:
+  //Bytes [0..5 MAC] ->
+  // MAC from the server is ignored.
+  //Starting at byte 6.
+
+  //packets are sent to 10.201.0.2, UDP port 8000
+  //Packets can come from anywhere.
+  //Packets send packets to device on port 8001
+
+  //Badge Status Update, sent at connect, after 10 seconds, upon request and button click.
+  //  TO BADGE 0x11: Request status update.
+  //  FROM BADGE 0x01: [0 reserved (could be version in future)] [RSSI] [BSSID of currently connected AP x6] [GPIO State] [Last button event, 0 if no events, 1-8 for button] [was last button event down] [Average LED power] [system 3.3v 2bytes] [status update count 2bytes] [heap free 2bytes] [sleep performance ratio] [0, reserved] [current time 4bytes]
+
+
+  //Control WS2812Bs on badge.
+  //    TO BADGE 0x02: [MAtch] [Mask] [Reserved, 0]   [GRB GRB GRB GRB ...]  NOTE: For raw packets, only 4 LEDs may be controlled.
+  //		if (! ((mymac[5] ^ data[7])&data[8]) )
+
+  //Glow LED to porportion of RSSI
+  //    TO BADGE 0x03: [min RSSI] [max RSSI] [LED intensity]
+
+  //Initiate SSID SCAN
+  //    TO BADGE 0x04: (no parameters, ONLY UDP can control this!)
+  //  FROM BADGE 0x05: [scan_timestamp (4 bytes)] [stations count in this message] [ [BSSIDx6bytes] [RSSI] [Channel] ]
+
+  //Rainbow effect
+  //    TO BADGE 0x07: [Reserved, 0] [Reserved, 0] [Reserved, 0] [Run time, MSB] [Run Time, LSB] [rainbow speed] [rainbow intensity] [rainbow offset per led]    Run time in ms.
+
+  //Device configure
+  //    TO BADGE 0x08: [requested update 1/0] [disable_push 1/0] [disable raw broadcast 1/0] [raw broadcast rate, recommended 0x1a]
+
+  //Force deep sleep (UDP only)
+  //    TO PADGE 0x09: [sleep ms MSB (4 bytes)] [0xaa, must be 0xaa]
+
+  if( data[6] == 0x11 && len > 1 )
+  {
+    printf("Status update requested\n");
+    requested_update = 1;
+  }
+
+  //0x01 is from badge, status packet
+  if( data[6] == 0x02 )
+  {
+    printf("LED Update\n");
+    //Update LEDs
+    rainbow_run = 0;
+    if( len <= 0 )
+    {
+      len = 22;
+    }
+    if (! ((mymac[5] ^ data[7])&data[8]) )
+    {
+      ets_memcpy( last_leds, data + 10, len - 10 );
+      ledqtybytes = len-10;
+      printf("ledqtybytes %d\n", ledqtybytes);
+      do_led_push = 1;
+    }
+  }
+  if( data[6] == 0x03 )  //RSSI the LED.
+  {
+    printf("Set LED to RSSI\n");
+    if( len == -1 )
+    {
+      static int rl1;
+      static int rl2;
+      static int rl3;
+      int rl4;
+      rl4 = rl3;
+      rl3 = rl2;
+      rl2 = rl1;
+      rl1 = data[-42];
+      led_rssi = (rl1+rl2+rl3+rl1)/4;
+    }
+    else
+    {
+      led_rssi = -1;
+    }
+
+    rainbow_run = 0;
+    ledrssi_min = data[7];
+    ledrssi_max = data[8];
+    ledrssi_intensity = data[9];
+
+    make_led_rssi = 1;
+  }
+
+  if( data[6] == 0x04 && len > 1 )  //Scan; make sure this can only be done via 
+  {
+    printf("Status packet request\n");
+    need_to_do_scan = 1;
+  }
+
+  //0x05 is from badge, browse response.
+  if( data[6] == 0x07 )
+  {
+    printf("Rainbow mode\n");
+    rainbow_run = ((data[10]<<8) | data[11])*1000;
+    rainbow_speed = data[12];
+    rainbow_intensity = data[13];
+    rainbow_offset = data[14];
+  }
+
+  if( data[6] == 0x08 && len > 1 )
+  {
+    printf("Configure updates\n");
+    requested_update = data[7];
+    disable_push = data[8];
+    disable_raw_broadcast = data[9];
+    raw_broadcast_rate = data[10];
+  }
+
+  if( data[6] == 0x09 && len > 1 )
+  {
+    printf("Setting sleep mode\n");
+    force_sleep_time = (data[7]<<24) || (data[8]<<16) || (data[9]<<8) || (data[10]);
+    do_deep_sleep = data[11] == 0xAA; 
+  }
+}
+
+void ICACHE_FLASH_ATTR send_status_update() {
+    printf("Status update %d\n", status_update_count);
+    requested_update = 0;
+    uint8_t *pp = &mypacket[PACK_PAYLOAD_START];
+    pp += 6; // MAC Address
+    *(pp++) = 0x01; //Message type
+    *(pp++) = 0;
+    *(pp++) = wifi_station_get_rssi(); // WiFi Power
+    struct station_config stationConf;
+    wifi_station_get_config(&stationConf);
+    ets_memcpy(pp, stationConf.bssid, 6);
+    pp += 6;
+    *(pp++) = new_buttons;
+    *(pp++) = last_button_event_btn; last_button_event_btn = 0;
+    *(pp++) = last_button_event_dn;
+    //computer power for LED.
+    int i;
+    int sum;
+    for( i = 0; i < 12; i++ ) {
+      sum += last_leds[i];
+    }
+    *(pp++) = sum / 12;
+
+    uint16_t vv = system_get_vdd33();					//System 3.3v
+    *(pp++) = vv>>8;
+    *(pp++) = vv & 0xff;
+
+    *(pp++) = status_update_count>>8;						//# of packets sent.
+    *(pp++) = status_update_count&0xff;
+
+    uint16_t heapfree = system_get_free_heap_size();
+    *(pp++) = heapfree>>8;
+    *(pp++) = heapfree & 0xff;
+
+    //Metric discussing how effective is sleeping.
+    //*(pp++) = sleepperformance & 0xff;
+    *(pp++) = 0;
+    *(pp++) = 0;
+
+    *(pp++) = 0;
+    *(pp++) = 0;
+    *(pp++) = 0;
+    *(pp++) = 0;
+
+    status_update_count++;
+    just_joined_network = 0;
+
+    if( printed_ip ) {
+      if( send_back_on_ip && send_back_on_port ) {
+        pUdpServer->proto.udp->remote_port = send_back_on_port;
+        uint32_to_IP4(send_back_on_ip,pUdpServer->proto.udp->remote_ip);
+        send_back_on_ip = 0; send_back_on_port = 0;
+      } else {
+        pUdpServer->proto.udp->remote_port = 8000;
+        uint32_to_IP4(REMOTE_IP_CODE,pUdpServer->proto.udp->remote_ip);  
+      }
+
+      udp_pending = 1;
+      espconn_send( (struct espconn *)pUdpServer, &mypacket[PACK_PAYLOAD_START], STATUS_PACKSIZE );
+    }
+
+    if( !disable_raw_broadcast )
+    {
+      wifi_set_phy_mode(PHY_MODE_11N);
+      wifi_set_user_fixed_rate( 3, raw_broadcast_rate );
+      wifi_send_pkt_freedom( mypacket, 30 + STATUS_PACKSIZE, true) ; 
+    }
+}
 
 static void ICACHE_FLASH_ATTR slowtick() {
-  if (!udp_pending) {
-    printf("Trying to send...\n");
-    udp_pending = 1;
-    pUdpServer->proto.udp->remote_port = 8001;
-    uint32_to_IP4(MARK_IP, pUdpServer->proto.udp->remote_ip);
-    espconn_send((struct espconn *)pUdpServer, &mypacket[30], 32);
+  bigticks++;
+  if (bigticks == 100) {
+    if (!udp_pending && printed_ip) {
+      send_status_update();
+    }
+    bigticks = 0;
+    udp_pending = 0;
   }
   CSTick(1);
 }
 
+static void ICACHE_FLASH_ATTR check_wifi_scan() {
+	if(need_to_do_scan && printed_ip)
+	{
+		printf("Initiating WiFi Scan\n");
+		int r;
+		struct scan_config sc;
+		sc.ssid = 0;  sc.bssid = 0;  sc.channel = 0;  sc.show_hidden = 1;
+		global_scan_complete = 0;
+		global_scan_elements = 0;
+		r = wifi_station_scan(&sc, scandone );
+		if( r )
+		{
+			printf("WiFi Scan is complete.\n");
+			//Scan good
+		}
+		else
+		{
+			global_scan_complete = 1;
+			global_scan_elements = 0;
+		}
+		//send out globalscanpacket.
+		need_to_do_scan = 0;
+	}
+
+	//XXX Tricky, after a scan is complete, start shifting the UDP data out.
+	if( global_scan_complete && !udp_pending )
+	{
+		int i;
+		uint8_t * pp = &mypacket[PACK_PAYLOAD_START];
+		pp+=6; //MAC is first.		
+		*(pp++) = 0x05; //Message type
+
+		//do this here so we always have a "scan complete" packet sent back to host.
+		if( global_scan_elements == 0 )
+		{
+			send_back_on_ip = 0;
+			send_back_on_port = 0;
+			global_scan_complete = 0;
+		}
+
+#define MAX_STATIONS_PER_PACKET 130
+
+		int stations = global_scan_elements;
+		if( stations > MAX_STATIONS_PER_PACKET ) stations = MAX_STATIONS_PER_PACKET;
+		*(pp++) = 0;
+		*(pp++) = 0;
+		*(pp++) = 0;
+		*(pp++) = 0;
+
+		*(pp++) = stations;
+
+		ets_memcpy( pp, global_scan_data, stations*8 );
+		pp += stations*8;
+		//Slide all remaining stations up.
+		for( i = 0; i < global_scan_elements - stations; i++ )
+		{
+			ets_memcpy( global_scan_data + i*8, global_scan_data + (i+stations)*8, 8 );
+		}
+		global_scan_elements -= stations;
+
+
+		if( send_back_on_ip && send_back_on_port)
+		{
+			pUdpServer->proto.udp->remote_port = send_back_on_port;
+			uint32_to_IP4(send_back_on_ip,pUdpServer->proto.udp->remote_ip);  
+		}
+		else
+		{
+			pUdpServer->proto.udp->remote_port = 8000;
+			uint32_to_IP4(REMOTE_IP_CODE,pUdpServer->proto.udp->remote_ip);  
+		}
+
+
+		udp_pending = 1;
+		espconn_send( (struct espconn *)pUdpServer, &mypacket[PACK_PAYLOAD_START], pp - &mypacket[PACK_PAYLOAD_START]  );
+	}
+}
+
 static void ICACHE_FLASH_ATTR procTask(os_event_t *events) {
+  check_wifi_scan();
   // Called at ~1620Hz
-  static int ticks;
+  new_buttons = GetButtons();
+  if (new_buttons != last_buttons) {
+    printf("Button pressed\n");
+    int i;
+    for(i=0; i<8; i++) {
+      int mask = 1<<i;
+      if((new_buttons & mask) != (last_buttons & mask)) {
+        last_button_event_btn = i+1;
+        printf("Button %d was ", last_button_event_btn);
+        last_button_event_dn = (new_buttons & mask)?1:0;
+        if (last_button_event_dn) {
+          printf("pushed\n");
+        } else {
+          printf("released\n");
+        }
+        if (printed_ip) {
+          send_status_update();
+        }
+      }
+    }
+  }
+  
+  if (!udp_pending && printed_ip && requested_update) {
+    send_status_update();
+  }
+
+  if (do_led_push) {
+    ws2812_push( last_leds, ledqtybytes/3 );
+    do_led_push = 0;
+  }
+  
+  last_buttons = new_buttons;
   CSTick(0);
   ticks++;
   if (ticks == 100) {
@@ -66,12 +422,21 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t *events) {
 }
 
 void udpsendok_cb(void *arg) {
-  printf("Sent ok\n");
   udp_pending = 0;
 }
 
 static void ICACHE_FLASH_ATTR udpserver_recv(void *arg, char *pusrdata, unsigned short len) {
   printf("Got Packet!");
+  struct espconn * rc = (struct espconn *)arg;
+  remot_info * ri = 0;
+  espconn_get_connection_info( rc, &ri, 0);
+
+  if( pusrdata[6] == 0x11 || pusrdata[6] == 0x04 ) {
+    send_back_on_ip = IP4_to_uint32(ri->remote_ip);
+    send_back_on_port = ri->remote_port;
+  }
+  struct espconn *pespconn = (struct espconn *)arg;
+  ProcessData(pusrdata, len);
 }
 
 void ICACHE_FLASH_ATTR send_ws_leds() {
@@ -115,8 +480,8 @@ void ICACHE_FLASH_ATTR charrx( uint8_t c ) {
 void user_init(void) {
   uart_init(BIT_RATE_115200, BIT_RATE_115200);
   printf("\nesp8266 Badge for MAGFest Labs 2\n" VERSSTR "\n");
-  uint8_t init_buttons = GetButtons();
-  printf("Initial buttons: %d\n", init_buttons);
+  last_buttons = GetButtons();
+  printf("Initial buttons: %d\n", last_buttons);
 
   CSSettingsLoad(0);
   CSPreInit();
@@ -156,6 +521,9 @@ void user_init(void) {
 
   wifi_set_sleep_type(MODEM_SLEEP_T);
   wifi_fpm_set_sleep_type(MODEM_SLEEP_T);
+  
+  wifi_get_macaddr(STATION_IF, mypacket + 10);
+  wifi_get_macaddr(STATION_IF, mypacket + PACK_PAYLOAD_START);  
   
   init_vive(); //Prepare the Vive core for receiving data.
   testi2s_init(); //Actually start the i2s engine.
