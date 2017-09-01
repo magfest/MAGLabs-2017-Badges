@@ -9,17 +9,30 @@ void ICACHE_FLASH_ATTR wifi_set_raw_recv_cb(wifi_raw_recv_cb_fn rx_fn)
 	wifi_mcb = rx_fn;
 }
 
+/*
 void aaEnqueueRxq(void * v)
 {
 	if (wifi_mcb)
 		wifi_mcb((struct RxPacket *)( ((void **)v)[4]), v );
 	ppEnqueueRxq(v);
+}*/
+
+void __wrap_ppEnqueueRxq(void *a)
+{
+    if (wifi_mcb)
+    {
+        wifi_mcb((struct RxPacket *)(((void **)a)[4]), a);
+    }
+
+    __real_ppEnqueueRxq(a);
 }
+
 
 //I use a less evasive mechanism to send than the other packet thing.
 
 //We need to get our hands on this pointer, but I don't know it's absolute location
 //So, we wait for a TX packet callback and steal it from there.
+#if 0
 static void * pxpkt = 0;  //This is the pointer to the structure that let's us raw send.
 
 static void txcb(uint8_t *buf, uint16 reason)
@@ -132,4 +145,5 @@ void RawSendBuffer( uint8_t * buffer, int length )
 
 }
 
+#endif
 #endif

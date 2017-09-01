@@ -29,6 +29,7 @@ static int ticks = 0;
 static int bigticks = 0;
 int send_back_on_port;
 uint32_t send_back_on_ip;
+static int did_raw_init = 0;
 
 // Status vars
 uint8_t new_buttons = 0;
@@ -62,7 +63,10 @@ static uint8_t global_scan_data[2048];  //Where SSID, channel, power go.
 
 uint8_t disable_push = 0;
 uint8_t disable_raw_broadcast = 0;
-uint8_t raw_broadcast_rate = 0;
+uint8_t raw_broadcast_rate = 
+	PHY_RATE_24; //
+	//0x0c;   //54 MBPS 802.11g
+	//0x0a;  //12 MBPS 802.11g
 
 uint8_t force_sleep_time = 0;
 uint8_t do_deep_sleep = 0;
@@ -99,7 +103,7 @@ static void ICACHE_FLASH_ATTR scandone(void *arg, STATUS status)
 	global_scan_complete = 1;
 }
 
-void ProcessData(uint8_t *data, int len) {
+void ICACHE_FLASH_ATTR ProcessData(uint8_t *data, int len) {
   //PROTOCOL:
   //Bytes [0..5 MAC] ->
   // MAC from the server is ignored.
@@ -209,6 +213,7 @@ void ProcessData(uint8_t *data, int len) {
     disable_push = data[8];
     disable_raw_broadcast = data[9];
     raw_broadcast_rate = data[10];
+	wifi_set_user_fixed_rate( 3, raw_broadcast_rate );
   }
 
   if( data[6] == 0x09 && len > 1 )
@@ -283,10 +288,32 @@ void ICACHE_FLASH_ATTR send_status_update() {
     if( !disable_raw_broadcast )
     {
       wifi_set_phy_mode(PHY_MODE_11N);
-      wifi_set_user_fixed_rate( 3, raw_broadcast_rate );
+      //wifi_set_user_fixed_rate( 3, raw_broadcast_rate );
       wifi_send_pkt_freedom( mypacket, 30 + STATUS_PACKSIZE, true) ; 
     }
 }
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////// This is the raw packet stuff
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+void  __attribute__ ((noinline)) ICACHE_FLASH_ATTR rx_func( struct RxPacket * r, void ** v )
+{
+	if( r->data[24] != 0x82 || r->data[25] != 0x66 || r->data[26] != 0x82 || r->data[27] != 0x66 )
+	{
+		return;
+	}
+
+	ProcessData( &r->data[30], -1 );
+}
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 
 static void ICACHE_FLASH_ATTR slowtick() {
   bigticks++;
@@ -298,11 +325,57 @@ static void ICACHE_FLASH_ATTR slowtick() {
     udp_pending = 0;
   }
   CSTick(1);
+
+
+  //This configures the monitor mode.
+  if( printed_ip && !did_raw_init )
+  {
+    wifi_set_raw_recv_cb( rx_func );
+    wifi_set_user_fixed_rate( 3, raw_broadcast_rate );
+    did_raw_init = 1;
+  }
+/*
+  //Make everyone's badges red.
+  mypacket[PACK_PAYLOAD_START+6] = 0x02;
+  mypacket[PACK_PAYLOAD_START+7] = 0x00;
+  mypacket[PACK_PAYLOAD_START+8] = 0x00;
+  mypacket[PACK_PAYLOAD_START+9] = 0x00;
+
+  mypacket[PACK_PAYLOAD_START+10] = 0x00;
+  mypacket[PACK_PAYLOAD_START+11] = 0xff;
+  mypacket[PACK_PAYLOAD_START+12] = 0x00;
+  mypacket[PACK_PAYLOAD_START+13] = 0x00;
+  mypacket[PACK_PAYLOAD_START+14] = 0xff;
+  mypacket[PACK_PAYLOAD_START+15] = 0x00;
+  mypacket[PACK_PAYLOAD_START+16] = 0x00;
+  mypacket[PACK_PAYLOAD_START+17] = 0xff;
+  mypacket[PACK_PAYLOAD_START+18] = 0x00;
+  mypacket[PACK_PAYLOAD_START+19] = 0x00;
+  mypacket[PACK_PAYLOAD_START+20] = 0xff;
+  mypacket[PACK_PAYLOAD_START+21] = 0x00;
+  mypacket[PACK_PAYLOAD_START+22] = 0x00;
+
+  wifi_set_phy_mode(PHY_MODE_11N);
+  //wifi_set_user_fixed_rate( 3, raw_broadcast_rate );
+  wifi_send_pkt_freedom( mypacket, 30 + STATUS_PACKSIZE, true) ; 
+*/
+/*
+  //Wifi strength
+  mypacket[PACK_PAYLOAD_START+6] = 0x03;
+  mypacket[PACK_PAYLOAD_START+7] = 0x10;
+  mypacket[PACK_PAYLOAD_START+8] = 0x20;
+  mypacket[PACK_PAYLOAD_START+9] = 0x01;
+  wifi_set_phy_mode(PHY_MODE_11N);
+  //wifi_set_user_fixed_rate( 3, raw_broadcast_rate );
+  wifi_send_pkt_freedom( mypacket, 30 + STATUS_PACKSIZE, true) ; 
+*/
+
 }
 
 static void ICACHE_FLASH_ATTR check_wifi_scan() {
 	if(need_to_do_scan && printed_ip)
 	{
+#if 1
 		printf("Initiating WiFi Scan\n");
 		int r;
 		struct scan_config sc;
@@ -322,6 +395,7 @@ static void ICACHE_FLASH_ATTR check_wifi_scan() {
 		}
 		//send out globalscanpacket.
 		need_to_do_scan = 0;
+#endif
 	}
 
 	//XXX Tricky, after a scan is complete, start shifting the UDP data out.
@@ -473,6 +547,8 @@ int ICACHE_FLASH_ATTR FailedToConnect( int wifi_fail_connects ) {
   printf("Failed to connect: %d\n", wifi_fail_connects);
   go_deepest_sleep_we_can();
 }
+
+
 
 void ICACHE_FLASH_ATTR charrx( uint8_t c ) {
 }
