@@ -500,7 +500,7 @@ void udpsendok_cb(void *arg) {
 }
 
 static void ICACHE_FLASH_ATTR udpserver_recv(void *arg, char *pusrdata, unsigned short len) {
-  printf("Got Packet!");
+  //printf("Got Packet!");
   struct espconn * rc = (struct espconn *)arg;
   remot_info * ri = 0;
   espconn_get_connection_info( rc, &ri, 0);
