@@ -504,8 +504,9 @@ void ICACHE_FLASH_ATTR go_deepest_sleep_we_can() {
   PIN_FUNC_SELECT(PERIPHS_IO_MUX_U0RXD_U, FUNC_GPIO3);
   gpio_output_set(0,0,0, 0xffff);
   ets_wdt_disable();
-  TurnOffOLED();
   int i;
+  do_pvvx_sleep(5000,0);	//In milliseconds.
+  TurnOffOLED();
   for( i = 0; i < 5; i++ )
     do_pvvx_sleep(5000,0);	//In milliseconds.
   do_pvvx_sleep(5000,1);	//In milliseconds... and reboot.
@@ -670,7 +671,7 @@ void user_init(void) {
   InitOLED();
 
   DensePrintBig( 24, 0, "MAGLabs\n" ); 
-  DensePrint( 24, 2, "SuperSupporter\n" ); 
+  DensePrint( 24, 2, "OLED Addon Mod\n" ); 
 
   printf("Boot Ok.\n");
 }
