@@ -30,7 +30,7 @@ static int bigticks = 0;
 int send_back_on_port;
 uint32_t send_back_on_ip;
 static int did_raw_init = 0;
-uint8_t init_steps = 4;
+uint8_t init_steps = 2;
 
 // Status vars
 uint8_t new_buttons = 0;
@@ -326,16 +326,8 @@ static void ICACHE_FLASH_ATTR slowtick() {
     if (init_steps) {
       printf("Init: %d\n", init_steps);
       int i;
-      if (init_steps == 4) {
+      if (init_steps == 2) {
         for (i=0;i<12;i=i+3) {
-          leds[i] = 25;
-        }
-      } else if (init_steps == 3) {
-        for (i=1;i<12;i=i+3) {
-          leds[i] = 25;
-        }
-      } else if (init_steps == 2) {
-        for (i=2;i<12;i=i+3) {
           leds[i] = 25;
         }
       } else if (init_steps == 1) {
