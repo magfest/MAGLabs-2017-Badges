@@ -16,6 +16,7 @@
 
 #define REMOTE_IP_CODE 0x0a00c90a
 #define MARK_IP        0x885c650a
+
 #define procTaskPrio        0
 #define procTaskQueueLen    1
 #define STATUS_PACKSIZE 32
@@ -226,6 +227,13 @@ void ICACHE_FLASH_ATTR ProcessData(uint8_t *data, int len) {
     //printf("Setting sleep mode\n");
     force_sleep_time = (data[7]<<24) || (data[8]<<16) || (data[9]<<8) || (data[10]);
     do_deep_sleep = data[11] == 0xAA; 
+  }
+  if( data[6] == 0x12 && len > 1 )
+  {
+    if( data[9] )
+      DensePrintBig( data[7], data[8], data+10 ); 
+    else
+      DensePrint( data[7], data[8], data+10 ); 
   }
 }
 
