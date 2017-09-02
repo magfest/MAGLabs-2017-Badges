@@ -49,7 +49,6 @@ uint8_t rainbow_offset = 0;
 
 uint8_t ledqtybytes = 0;
 uint8_t do_led_push = 0;
-uint8_t last_leds[40*3] = {0};
 
 uint8_t ledrssi_min = 0;
 uint8_t ledrssi_max = 0;
@@ -83,6 +82,11 @@ uint8_t mypacket[30+1536] = {  //256 = max size of additional payload
         0x82, 0x66, 0x00, 0x00, //????
 };
 #define PACK_PAYLOAD_START 30
+
+void ICACHE_FLASH_ATTR send_ws_leds() {
+  ws2812_push( leds, 4);
+}
+
 
 static void ICACHE_FLASH_ATTR scandone(void *arg, STATUS status)
 {
@@ -157,7 +161,7 @@ void ICACHE_FLASH_ATTR ProcessData(uint8_t *data, int len) {
     }
     if (! ((mymac[5] ^ data[7])&data[8]) )
     {
-      ets_memcpy( last_leds, data + 10, len - 10 );
+      ets_memcpy( leds, data + 10, 12 );
       ledqtybytes = len-10;
       //printf("ledqtybytes %d\n", ledqtybytes);
       do_led_push = 1;
@@ -244,7 +248,7 @@ void ICACHE_FLASH_ATTR send_status_update() {
     int i;
     int sum;
     for( i = 0; i < 12; i++ ) {
-      sum += last_leds[i];
+      sum += leds[i];
     }
     *(pp++) = sum / 12;
 
@@ -336,10 +340,10 @@ static void ICACHE_FLASH_ATTR slowtick() {
         }
       } else if (init_steps == 1) {
         for (i=0;i<12;i++) {
-          leds[i] = 0;
+          leds[i] = 4;
         }
       }
-      ws2812_push( leds, 4);
+      send_ws_leds();
       init_steps--;
     }
   }
@@ -356,6 +360,12 @@ static void ICACHE_FLASH_ATTR slowtick() {
   //This configures the monitor mode.
   if( printed_ip && !did_raw_init )
   {
+      int i;
+      for (i=0;i<12;i+=2) {
+        leds[i] = 0;
+      }
+      send_ws_leds();
+
     wifi_set_raw_recv_cb( rx_func );
     //wifi_set_user_fixed_rate( 3, raw_broadcast_rate );
     did_raw_init = 1;
@@ -478,13 +488,10 @@ static void ICACHE_FLASH_ATTR check_wifi_scan() {
 	}
 }
 
-void ICACHE_FLASH_ATTR send_ws_leds() {
-  ws2812_push( leds, 4);
-}
 
 void ICACHE_FLASH_ATTR go_deepest_sleep_we_can() {
   printf( "DEEPSLEEP\n" );
-  ets_memset( leds, 0, sizeof( leds ) ); leds[1] = 1; leds[4] = 1; leds[7] = 1; leds[10] = 1;
+  ets_memset( leds, 0, sizeof( leds ) ); leds[1] = 4; leds[4] = 0; leds[7] = 0; leds[10] = 0;
   send_ws_leds();
   ets_delay_us(14000);
   send_ws_leds();
@@ -540,7 +547,7 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t *events) {
   }
 
   if (do_led_push) {
-    ws2812_push( last_leds, ledqtybytes/3 );
+    send_ws_leds();
     do_led_push = 0;
   }
   
@@ -643,8 +650,6 @@ void user_init(void) {
   
   init_vive(); //Prepare the Vive core for receiving data.
   testi2s_init(); //Actually start the i2s engine.
-  ets_memset( leds, 0, sizeof( leds ) ); leds[0] = 1; leds[5] = 1; leds[6] = 1; leds[11] = 1;
-  send_ws_leds();
   
   system_os_task(procTask, procTaskPrio, procTaskQueue, procTaskQueueLen);
   printf("Boot Ok.\n");
