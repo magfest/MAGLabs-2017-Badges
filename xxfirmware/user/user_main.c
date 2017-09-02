@@ -644,6 +644,9 @@ void user_init(void) {
   testi2s_init(); //Actually start the i2s engine.
   
   system_os_task(procTask, procTaskPrio, procTaskQueue, procTaskQueueLen);
+
+  InitOLED();
+
   printf("Boot Ok.\n");
 }
 
