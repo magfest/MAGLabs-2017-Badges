@@ -85,7 +85,7 @@ uint8_t mypacket[30+1536] = {  //256 = max size of additional payload
 
 static void ICACHE_FLASH_ATTR scandone(void *arg, STATUS status)
 {
-	printf("WiFi scan is complete\n");
+	//printf("WiFi scan is complete\n");
 	uint8_t * gsp = global_scan_data;
 	global_scan_elements = 0;
 	scaninfo *c = arg;
@@ -140,7 +140,7 @@ void ICACHE_FLASH_ATTR ProcessData(uint8_t *data, int len) {
 
   if( data[6] == 0x11 && len > 1 )
   {
-    printf("Status update requested\n");
+    //printf("Status update requested\n");
     requested_update = 1;
   }
 
@@ -164,7 +164,7 @@ void ICACHE_FLASH_ATTR ProcessData(uint8_t *data, int len) {
   }
   if( data[6] == 0x03 )  //RSSI the LED.
   {
-    printf("Set LED to RSSI\n");
+    //printf("Set LED to RSSI\n");
     if( len == -1 )
     {
       static int rl1;
@@ -192,14 +192,14 @@ void ICACHE_FLASH_ATTR ProcessData(uint8_t *data, int len) {
 
   if( data[6] == 0x04 && len > 1 )  //Scan; make sure this can only be done via 
   {
-    printf("Status packet request\n");
+    //printf("Status packet request\n");
     need_to_do_scan = 1;
   }
 
   //0x05 is from badge, browse response.
   if( data[6] == 0x07 )
   {
-    printf("Rainbow mode\n");
+    //printf("Rainbow mode\n");
     rainbow_run = ((data[10]<<8) | data[11])*1000;
     rainbow_speed = data[12];
     rainbow_intensity = data[13];
@@ -208,7 +208,7 @@ void ICACHE_FLASH_ATTR ProcessData(uint8_t *data, int len) {
 
   if( data[6] == 0x08 && len > 1 )
   {
-    printf("Configure updates\n");
+    //printf("Configure updates\n");
     requested_update = data[7];
     disable_push = data[8];
     disable_raw_broadcast = data[9];
@@ -218,14 +218,14 @@ void ICACHE_FLASH_ATTR ProcessData(uint8_t *data, int len) {
 
   if( data[6] == 0x09 && len > 1 )
   {
-    printf("Setting sleep mode\n");
+    //printf("Setting sleep mode\n");
     force_sleep_time = (data[7]<<24) || (data[8]<<16) || (data[9]<<8) || (data[10]);
     do_deep_sleep = data[11] == 0xAA; 
   }
 }
 
 void ICACHE_FLASH_ATTR send_status_update() {
-    printf("Status update %d\n", status_update_count);
+    //printf("Status update %d\n", status_update_count);
     requested_update = 0;
     uint8_t *pp = &mypacket[PACK_PAYLOAD_START];
     pp += 6; // MAC Address
@@ -376,7 +376,7 @@ static void ICACHE_FLASH_ATTR check_wifi_scan() {
 	if(need_to_do_scan && printed_ip)
 	{
 #if 1
-		printf("Initiating WiFi Scan\n");
+		//printf("Initiating WiFi Scan\n");
 		int r;
 		struct scan_config sc;
 		sc.ssid = 0;  sc.bssid = 0;  sc.channel = 0;  sc.show_hidden = 1;
@@ -385,7 +385,7 @@ static void ICACHE_FLASH_ATTR check_wifi_scan() {
 		r = wifi_station_scan(&sc, scandone );
 		if( r )
 		{
-			printf("WiFi Scan is complete.\n");
+			//printf("WiFi Scan is complete.\n");
 			//Scan good
 		}
 		else
