@@ -230,7 +230,7 @@ void ICACHE_FLASH_ATTR send_status_update() {
     uint8_t *pp = &mypacket[PACK_PAYLOAD_START];
     pp += 6; // MAC Address
     *(pp++) = 0x01; //Message type
-    *(pp++) = 0;
+    *(pp++) = 1;
     *(pp++) = wifi_station_get_rssi(); // WiFi Power
     struct station_config stationConf;
     wifi_station_get_config(&stationConf);
