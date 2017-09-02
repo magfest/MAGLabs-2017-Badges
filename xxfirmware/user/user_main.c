@@ -30,6 +30,7 @@ static int bigticks = 0;
 int send_back_on_port;
 uint32_t send_back_on_ip;
 static int did_raw_init = 0;
+uint8_t init_steps = 4;
 
 // Status vars
 uint8_t new_buttons = 0;
@@ -317,6 +318,31 @@ void  __attribute__ ((noinline)) rx_func( struct RxPacket * r, void ** v )
 
 static void ICACHE_FLASH_ATTR slowtick() {
   bigticks++;
+  if (!(bigticks % 5)) {
+    if (init_steps) {
+      printf("Init: %d\n", init_steps);
+      int i;
+      if (init_steps == 4) {
+        for (i=0;i<12;i=i+3) {
+          leds[i] = 25;
+        }
+      } else if (init_steps == 3) {
+        for (i=1;i<12;i=i+3) {
+          leds[i] = 25;
+        }
+      } else if (init_steps == 2) {
+        for (i=2;i<12;i=i+3) {
+          leds[i] = 25;
+        }
+      } else if (init_steps == 1) {
+        for (i=0;i<12;i++) {
+          leds[i] = 0;
+        }
+      }
+      ws2812_push( leds, 4);
+      init_steps--;
+    }
+  }
   if (bigticks == 100) {
     if (!udp_pending && printed_ip) {
       send_status_update();
@@ -452,7 +478,39 @@ static void ICACHE_FLASH_ATTR check_wifi_scan() {
 	}
 }
 
+void ICACHE_FLASH_ATTR send_ws_leds() {
+  ws2812_push( leds, 4);
+}
+
+void ICACHE_FLASH_ATTR go_deepest_sleep_we_can() {
+  printf( "DEEPSLEEP\n" );
+  ets_memset( leds, 0, sizeof( leds ) ); leds[1] = 1; leds[4] = 1; leds[7] = 1; leds[10] = 1;
+  send_ws_leds();
+  ets_delay_us(14000);
+  send_ws_leds();
+  os_delay_us(14000);
+  testi2s_disable();
+  wifi_station_disconnect();
+  wifi_set_opmode_current( 0 ); //disconnect from wifi.
+  PIN_FUNC_SELECT(PERIPHS_IO_MUX_MTDI_U, FUNC_GPIO12);
+  PIN_FUNC_SELECT(PERIPHS_IO_MUX_U0RXD_U, FUNC_GPIO3);
+  gpio_output_set(0,0,0, 0xffff);
+  ets_wdt_disable();
+  int i;
+  for( i = 0; i < 3; i++ )
+    do_pvvx_sleep(5000,0);	//In milliseconds.
+  do_pvvx_sleep(5000,1);	//In milliseconds... and reboot.
+  //XXX This code SHOULD never be executed.
+  ets_delay_us(10000);
+  void (*my_reset)() = (void (*)())0x400000a4;
+  my_reset();
+
+}
+
 static void ICACHE_FLASH_ATTR procTask(os_event_t *events) {
+  if (do_deep_sleep) {
+    go_deepest_sleep_we_can();
+  }
   check_wifi_scan();
   // Called at ~1620Hz
   new_buttons = GetButtons();
@@ -511,35 +569,6 @@ static void ICACHE_FLASH_ATTR udpserver_recv(void *arg, char *pusrdata, unsigned
   }
   struct espconn *pespconn = (struct espconn *)arg;
   ProcessData(pusrdata, len);
-}
-
-void ICACHE_FLASH_ATTR send_ws_leds() {
-  ws2812_push( leds, 4);
-}
-
-void ICACHE_FLASH_ATTR go_deepest_sleep_we_can() {
-  printf( "DEEPSLEEP\n" );
-  ets_memset( leds, 0, sizeof( leds ) ); leds[1] = 1; leds[4] = 1; leds[7] = 1; leds[10] = 1;
-  send_ws_leds();
-  ets_delay_us(14000);
-  send_ws_leds();
-  os_delay_us(14000);
-  testi2s_disable();
-  wifi_station_disconnect();
-  wifi_set_opmode_current( 0 ); //disconnect from wifi.
-  PIN_FUNC_SELECT(PERIPHS_IO_MUX_MTDI_U, FUNC_GPIO12);
-  PIN_FUNC_SELECT(PERIPHS_IO_MUX_U0RXD_U, FUNC_GPIO3);
-  gpio_output_set(0,0,0, 0xffff);
-  ets_wdt_disable();
-  int i;
-  for( i = 0; i < 3; i++ )
-    do_pvvx_sleep(5000,0);	//In milliseconds.
-  do_pvvx_sleep(5000,1);	//In milliseconds... and reboot.
-  //XXX This code SHOULD never be executed.
-  ets_delay_us(10000);
-  void (*my_reset)() = (void (*)())0x400000a4;
-  my_reset();
-
 }
 
 int ICACHE_FLASH_ATTR FailedToConnect( int wifi_fail_connects ) {
