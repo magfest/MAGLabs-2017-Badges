@@ -483,6 +483,7 @@ static void ICACHE_FLASH_ATTR check_wifi_scan() {
 
 void ICACHE_FLASH_ATTR go_deepest_sleep_we_can() {
   printf( "DEEPSLEEP\n" );
+  DensePrint( 24, 7, "No network\n" ); 
   ets_memset( leds, 0, sizeof( leds ) ); leds[1] = 4; leds[4] = 0; leds[7] = 0; leds[10] = 0;
   send_ws_leds();
   ets_delay_us(14000);
@@ -495,8 +496,9 @@ void ICACHE_FLASH_ATTR go_deepest_sleep_we_can() {
   PIN_FUNC_SELECT(PERIPHS_IO_MUX_U0RXD_U, FUNC_GPIO3);
   gpio_output_set(0,0,0, 0xffff);
   ets_wdt_disable();
+  TurnOffOLED();
   int i;
-  for( i = 0; i < 3; i++ )
+  for( i = 0; i < 5; i++ )
     do_pvvx_sleep(5000,0);	//In milliseconds.
   do_pvvx_sleep(5000,1);	//In milliseconds... and reboot.
   //XXX This code SHOULD never be executed.
@@ -505,6 +507,7 @@ void ICACHE_FLASH_ATTR go_deepest_sleep_we_can() {
   my_reset();
 
 }
+static int did_print_ip;
 
 static void ICACHE_FLASH_ATTR procTask(os_event_t *events) {
   if (do_deep_sleep) {
@@ -532,6 +535,17 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t *events) {
         }
       }
     }
+  }
+
+  if( !did_print_ip && printed_ip )
+  {
+    char ctspr[100];
+
+    struct ip_info ipi;
+    wifi_get_ip_info(0, &ipi);
+	#define chop_ip(x) (((x)>>0)&0xff), (((x)>>8)&0xff), (((x)>>16)&0xff), (((x)>>24)&0xff)
+    ets_sprintf( ctspr, "%d.%d.%d.%d", chop_ip(ipi.ip.addr)  );
+    DensePrint( 24, 7, ctspr ); 
   }
   
   if (!udp_pending && printed_ip && requested_update) {
@@ -646,6 +660,9 @@ void user_init(void) {
   system_os_task(procTask, procTaskPrio, procTaskQueue, procTaskQueueLen);
 
   InitOLED();
+
+  DensePrintBig( 24, 0, "MAGLabs\n" ); 
+  DensePrint( 24, 2, "SuperSupporter\n" ); 
 
   printf("Boot Ok.\n");
 }

@@ -17,8 +17,6 @@
 #define COMMAND	 0x00
 #define DATA     0x40
 
-unsigned char cursorx, cursory;
-
 int display_on;
 
 
@@ -47,7 +45,7 @@ const unsigned char DensitronBootMessage[] = { DENSITRON_ADDRESS,
 	NC1 0x21, NC2 0x00, NC2 0x7f, //Column start and end addresses
 	NC1 0x22, NC2 0x00, NC2 0x3f, //Page start/end addresses.
 
-	NC1 0xD3, NC2 0x20, //Display Offset  (**** SET TO 28 FOR TOP OF SCREEN ****)
+	NC1 0xD3, NC2 0x38, //Display Offset  (**** SET TO 28 FOR TOP OF SCREEN ****)
 	NC1 0x40,           //Display start line
 
 	NC1 0xA4,           //Turn on screen
@@ -86,12 +84,12 @@ void ICACHE_FLASH_ATTR InitOLED()
 	printf( "Densitron OK\n" );
 
 
-/*	SendStart();
+	SendStart();
 	SendByte( DENSITRON_ADDRESS );
 	//Seek, left/right
 	int x =0 ;
 	int y = 0;
-	for( y = 0; y < 16; y++ )
+	for( y = 0; y < 8; y++ )
 	{
 		SendByte( CONTINUE | COMMAND ); SendByte( 0x00 | (x & 0x0f) );
 		SendByte( CONTINUE | COMMAND ); SendByte( 0x10 | (x >> 4)   );
@@ -99,16 +97,10 @@ void ICACHE_FLASH_ATTR InitOLED()
 
 		for( i = 0; i < 128	; i++ )
 		{
-			SendByte( CONTINUE | DATA );SendByte( 0xff );	
+			SendByte( CONTINUE | DATA );SendByte( 0 );	
 		}
 	SendStop();	
 	}
-*/
-	cursory = 0; cursorx = 0;DensePrintBig( "MAGLAB1\n" ); 
-	cursory = 4; cursorx = 0;DensePrintBig( "MAGLAB2\n" );
-	cursory = 6; cursorx = 0;DensePrintBig( "MAGLAB3\n" );
-	cursory = 8; cursorx = 0;DensePrintBig( "MAGLAB4\n" );
-
 	
 
 	return;
@@ -117,6 +109,15 @@ fail:
 	SendStop();
 }
 
+void ICACHE_FLASH_ATTR TurnOffOLED()
+{
+	if( !display_on ) return;
+	display_on = 0;
+	SendStart();
+	SendByte( DENSITRON_ADDRESS );
+	SendByte( CONTINUE | COMMAND ); SendByte( 0xAE );
+	SendStop();
+}
 
 void ICACHE_FLASH_ATTR DensitronOutput( unsigned char x, unsigned char y, unsigned char * stream, unsigned char len )
 {
@@ -148,7 +149,7 @@ void ICACHE_FLASH_ATTR DensitronOutput( unsigned char x, unsigned char y, unsign
 #include "font.h"
 
 
-void ICACHE_FLASH_ATTR DensePrint( const char * st )
+void ICACHE_FLASH_ATTR DensePrint( int cursorx, int cursory, const char * st )
 {
 	while( (*st) )
 	{
@@ -188,7 +189,7 @@ void ICACHE_FLASH_ATTR DensePrint( const char * st )
 	}
 }
 
-void ICACHE_FLASH_ATTR DensePrintBig( const char * st )
+void ICACHE_FLASH_ATTR DensePrintBig( int cursorx, int cursory, const char * st )
 {
 	while( (*st) )
 	{
