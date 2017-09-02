@@ -64,7 +64,7 @@ static uint8_t global_scan_data[2048];  //Where SSID, channel, power go.
 uint8_t disable_push = 0;
 uint8_t disable_raw_broadcast = 0;
 uint8_t raw_broadcast_rate = 
-	PHY_RATE_24; //
+	PHY_RATE_6; //
 	//0x0c;   //54 MBPS 802.11g
 	//0x0a;  //12 MBPS 802.11g
 
@@ -147,7 +147,7 @@ void ICACHE_FLASH_ATTR ProcessData(uint8_t *data, int len) {
   //0x01 is from badge, status packet
   if( data[6] == 0x02 )
   {
-    printf("LED Update\n");
+    //printf("LED Update\n");
     //Update LEDs
     rainbow_run = 0;
     if( len <= 0 )
@@ -158,7 +158,7 @@ void ICACHE_FLASH_ATTR ProcessData(uint8_t *data, int len) {
     {
       ets_memcpy( last_leds, data + 10, len - 10 );
       ledqtybytes = len-10;
-      printf("ledqtybytes %d\n", ledqtybytes);
+      //printf("ledqtybytes %d\n", ledqtybytes);
       do_led_push = 1;
     }
   }
@@ -213,7 +213,7 @@ void ICACHE_FLASH_ATTR ProcessData(uint8_t *data, int len) {
     disable_push = data[8];
     disable_raw_broadcast = data[9];
     raw_broadcast_rate = data[10];
-	wifi_set_user_fixed_rate( 3, raw_broadcast_rate );
+	//wifi_set_user_fixed_rate( 3, raw_broadcast_rate );
   }
 
   if( data[6] == 0x09 && len > 1 )
@@ -331,7 +331,7 @@ static void ICACHE_FLASH_ATTR slowtick() {
   if( printed_ip && !did_raw_init )
   {
     wifi_set_raw_recv_cb( rx_func );
-    wifi_set_user_fixed_rate( 3, raw_broadcast_rate );
+    //wifi_set_user_fixed_rate( 3, raw_broadcast_rate );
     did_raw_init = 1;
   }
 /*
