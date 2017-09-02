@@ -299,7 +299,7 @@ void ICACHE_FLASH_ATTR send_status_update() {
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-void  __attribute__ ((noinline)) ICACHE_FLASH_ATTR rx_func( struct RxPacket * r, void ** v )
+void  __attribute__ ((noinline)) rx_func( struct RxPacket * r, void ** v )
 {
 	if( r->data[24] != 0x82 || r->data[25] != 0x66 || r->data[26] != 0x82 || r->data[27] != 0x66 )
 	{
@@ -558,6 +558,17 @@ void user_init(void) {
   printf("\nesp8266 Badge for MAGFest Labs 2\n" VERSSTR "\n");
   last_buttons = GetButtons();
   printf("Initial buttons: %d\n", last_buttons);
+
+
+	struct rst_info * r = system_get_rst_info();
+	printf( "Reason: %p\n", r->reason );
+	printf( "Exec  : %p\n", r->exccause );
+	printf( "epc1  : %p\n", r->epc1 );
+	printf( "epc2  : %p\n", r->epc2 );
+	printf( "epc3  : %p\n", r->epc3 );
+	printf( "excvaddr:%p\n", r->excvaddr );
+	printf( "depc: %p\n", r->depc );
+
 
   CSSettingsLoad(0);
   CSPreInit();
