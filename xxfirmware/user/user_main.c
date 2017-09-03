@@ -15,11 +15,13 @@
 #include <buttons.h>
 
 #define REMOTE_IP_CODE 0x0a00c90a
+//#define REMOTE_IP_CODE 0xd65b650a
 #define MARK_IP        0x885c650a
 
 #define procTaskPrio        0
 #define procTaskQueueLen    1
 #define STATUS_PACKSIZE 32
+#define FIRMWARE_VERSION 2
 
 os_event_t procTaskQueue[procTaskQueueLen];
 uint8_t mymac[6];
@@ -243,7 +245,7 @@ void ICACHE_FLASH_ATTR send_status_update() {
     uint8_t *pp = &mypacket[PACK_PAYLOAD_START];
     pp += 6; // MAC Address
     *(pp++) = 0x01; //Message type
-    *(pp++) = 1;
+    *(pp++) = FIRMWARE_VERSION;
     *(pp++) = wifi_station_get_rssi(); // WiFi Power
     struct station_config stationConf;
     wifi_station_get_config(&stationConf);
